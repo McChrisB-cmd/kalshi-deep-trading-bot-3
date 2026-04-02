@@ -1,32 +1,13 @@
-# Environment variables and secrets
+# Environment variables
 .env
 .env.local
-.env.development
-.env.production
+.env.*
 
-# API keys and secrets
-*.key
-*.secret
-config.json
-
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-
-# Log files
-*.log
-logs/
-trading_bot.log
-
-# Python cache
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.Python
-
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -40,73 +21,41 @@ parts/
 sdist/
 var/
 wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
-
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
 
 # Virtual environments
 venv/
-ENV/
 env/
-.venv/
+ENV/
+.venv
 
-# IDE files
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# OS files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+.release-notes-*.md
 
-# Jupyter Notebook
-.ipynb_checkpoints
+# UV
+.uv/
 
-# pyenv
-.python-version
+# Cursor files
+.cursor/
 
-# Trading bot specific
-bot_final_state.json
-backup_*.db
-research_cache/
-temp_files/
+# App context files (offloaded tool outputs)
+.kalshi-deep-trading-bot/*
 
-# Sensitive configuration
-kalshi_config.json
-octagon_config.json 
-.kalshi.demo.pem
-.kalshi.pem
 
-*betting_decisions_*
+logs/
+coverage.json
+*.pem
