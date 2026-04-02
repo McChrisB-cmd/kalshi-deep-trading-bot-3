@@ -1,291 +1,255 @@
 # Kalshi Deep Trading Bot
 
-A straightforward trading bot for Kalshi prediction markets that uses Octagon Deep Research for market analysis and OpenAI for structured betting decisions.
+AI-powered Kalshi trading CLI that finds edge and executes trades.
 
-![Trading Bot Flowchart](KalshiDeepTradingBot.png)
+Runs deep fundamental research on every market — independent probability estimates, ranked price drivers, catalyst calendars — then computes edge as the spread between model price and the live order book. Signals are sized using half-Kelly and filtered through a 5-gate risk engine before a dollar is risked.
 
-![Trading Bot Research Example](research-example.png)
+Integrates with the [Octagon Research API](https://app.octagonai.co) for AI-generated probability estimates that power the edge detection engine.
 
-## ⚠️ Financial Disclaimer
-
-**IMPORTANT: This software is provided for educational and research purposes only. Trading prediction markets involves significant financial risk.**
-
-- **No Financial Advice**: This bot does not provide financial advice. All trading decisions are made by automated algorithms and should not be considered investment recommendations.
-- **Risk of Loss**: Trading prediction markets can result in substantial financial losses. You may lose some or all of your invested capital.
-- **No Liability**: Octagon AI, its affiliates, and contributors are not liable for any trading losses, damages, or other financial consequences resulting from the use of this software.
-- **Use at Your Own Risk**: By using this software, you acknowledge that you understand the risks involved and that you are solely responsible for any trading decisions and their outcomes.
-- **No Warranty**: This software is provided "as is" without any warranties or guarantees of performance, accuracy, or profitability.
-
-**Please trade responsibly and only with capital you can afford to lose.**
-
-## How It Works
-
-The bot follows a simple 6-step workflow:
-
-1. **Fetch Events**: Gets top 50 events from Kalshi sorted by volume (filtered by status and time)
-2. **Process Markets**: Uses top 10 highest volume markets per event
-3. **Research Events**: Uses Octagon Deep Research to analyze event + markets (without odds)
-4. **Fetch Market Odds**: Gets current bid/ask prices for all markets
-5. **Make Decisions**: Feeds research results and market odds into OpenAI for structured betting decisions
-6. **Place Bets**: Executes the recommended bets via Kalshi API
-
-## Features
-
-- **Simple & Direct**: No complex strategies or risk management systems
-- **AI-Powered**: Uses Octagon Deep Research for market analysis and OpenAI for decision making
-- **Event-Based**: Analyzes entire events with all markets for better context
-- **Flexible Environment**: Supports both demo and production environments
-- **Dry Run Mode**: Test the bot without placing real bets
-- **Rich Console**: Beautiful progress tracking and result display with probability predictions
+![Kalshi Deep Trading Bot](assets/screenshot.png)
 
 ## Quick Start
 
-### 1. Install uv (if not already installed)
-
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+git clone https://github.com/OctagonAI/kalshi-deep-trading-bot-cli.git
+cd kalshi-deep-trading-bot-cli
+bun install
+bun start
 ```
 
-### 2. Install Dependencies
+The setup wizard runs automatically on first launch — it walks you through API keys and validates connectivity. No `.env` editing required.
 
-```bash
-uv sync
+> Don't have Bun? Install it with `curl -fsSL https://bun.com/install | bash`
+
+## Example Session
+
+```
+$ bun start
+
+Welcome to Kalshi Deep Trading Bot
+Type help for commands, or just ask a question.
+
+> search crypto
+
+  Ticker                  Title                          Last    Volume
+  KXBTC-26APR-B95000      Bitcoin above $95k by Apr 30   $0.58   12,841
+  KXBTC-26APR-B100000     Bitcoin above $100k by Apr 30  $0.31    8,203
+  KXETH-26APR-B2000       Ethereum above $2k by Apr 30   $0.72    5,419
+
+3 markets found
+
+> analyze KXBTC-26APR-B95000
+
+  Octagon Research Report — KXBTC-26APR-B95000
+  ─────────────────────────────────────────────
+  Model Probability   72%
+  Market Price        58%
+  Edge               +14.0%  (very_high confidence)
+
+  Top Drivers
+  1. Bitcoin ETF inflows accelerating            impact: high
+  2. Halving cycle momentum                      impact: high
+  3. Macro risk-on sentiment                     impact: moderate
+
+  Kelly Sizing
+  Recommended: 3 contracts YES at $0.58
+  Risk gates: ✓ Kelly  ✓ Liquidity  ✓ Correlation  ✓ Concentration  ✓ Drawdown
+
+> buy KXBTC-26APR-B95000 3 58
+
+  ✓ Order placed: BUY 3 YES @ $0.58
+  Order ID: abc-123-def
+
+> portfolio
+
+  Ticker                  Side  Qty  Entry   Now    Edge    P&L
+  KXBTC-26APR-B95000      YES    3   $0.58   $0.61  +11.0%  +$0.09
+
+  Cash: $487.26 · Exposure: $1.74 · Positions: 1
 ```
 
-### 3. Set Up Environment
+## Commands
 
-Copy the environment template and fill in your API credentials:
+| Command | Description |
+|---------|-------------|
+| `search [theme\|ticker\|query]` | Find markets by keyword or theme |
+| `analyze <ticker>` | Deep analysis: edge, drivers, Kelly sizing |
+| `watch <ticker>` | Live price and orderbook feed |
+| `watch --theme <theme>` | Continuous theme scan |
+| `buy <ticker> <count> [price] [yes\|no]` | Buy contracts |
+| `sell <ticker> <count> [price] [yes\|no]` | Sell contracts |
+| `cancel <order_id>` | Cancel a resting order |
+| `portfolio` | Positions, P&L, risk snapshot |
+| `setup` | Re-run setup wizard (inside TUI) |
+| `init` | Launch setup wizard from CLI (`bun start init`) |
+| `clear-cache` | Delete local cache and rebuild (`bun start clear-cache`) |
+| `help [command]` | Detailed help for a command |
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `--json` | JSON output for scripts and agents |
+| `--refresh` | Force fresh Octagon report (analyze) |
+| `--performance` | Include win rate, Sharpe, Brier scores (portfolio) |
+| `--dry-run` | Scan without persisting edges (watch) |
+| `--verbose` | Verbose output |
+| `--min-edge <n>` | Minimum edge threshold |
+| `--interval <min>` | Scan interval in minutes (watch) |
+| `--live` | Force 15m scan interval (watch) |
+
+### Demo Mode
+
+Set `KALSHI_USE_DEMO=true` in your `.env` to use Kalshi's demo environment. All trades are simulated — no real money at risk.
+
+## Agent Usage
+
+Every command supports `--json` for structured output, making the bot easy to orchestrate from scripts or AI agents.
 
 ```bash
-cp env_template.txt .env
-# Edit .env with your API keys
+bun start search crypto --json
+bun start analyze KXBTC-26APR-B95000 --json
+bun start buy KXBTC-26APR-B95000 3 58 --json
+bun start portfolio --json
 ```
 
-Required API keys:
-- **Kalshi API**: Get from [kalshi.com](https://docs.kalshi.com/getting_started/api_keys) or [demo.kalshi.co](https://demo.kalshi.co)
-- **Octagon API**: Get from [app.octagonai.co](https://app.octagonai.co/signup)
-- **OpenAI API**: Get from [platform.openai.com](https://platform.openai.com/api-keys)
+### JSON Response Format
 
-### 4. Run the Bot
+All responses follow the same envelope:
 
-**Default (Dry Run Mode):**
+```json
+{
+  "ok": true,
+  "command": "analyze",
+  "data": {
+    "ticker": "KXBTC-26APR-B95000",
+    "modelProb": 0.72,
+    "marketProb": 0.58,
+    "edge": 0.14,
+    "confidence": "very_high",
+    "drivers": [
+      { "claim": "Bitcoin ETF inflows accelerating", "impact": "high" }
+    ]
+  },
+  "meta": {
+    "octagon_credits_used": 3,
+    "octagon_cache_hits": 0
+  },
+  "timestamp": "2026-03-30T10:00:00.000Z"
+}
+```
+
+Errors return `"ok": false` with an `error` object containing `code` and `message`. Exit code is 0 for success, 1 for failure.
+
+### Example Orchestration Flow
+
 ```bash
-# Shows what trades would be made without placing real bets
-uv run trading_bot.py
-# OR
-uv run trading-bot
+# 1. Find markets
+MARKETS=$(bun start search crypto --json | jq '.data')
+
+# 2. Analyze top pick
+ANALYSIS=$(bun start analyze KXBTC-26APR-B95000 --json)
+EDGE=$(echo "$ANALYSIS" | jq '.data.edge')
+
+# 3. Trade if edge is high enough
+if (( $(echo "$EDGE > 0.05" | bc -l) )); then
+  bun start buy KXBTC-26APR-B95000 3 58 --json
+fi
+
+# 4. Check portfolio
+bun start portfolio --json
 ```
 
-**Live Trading Mode:**
-```bash
-# Actually places bets (use with caution!)
-uv run trading_bot.py --live
-# OR
-uv run trading-bot --live
-```
-
-### Optional: Filter markets by soonest expiration
-
-You can limit markets to those closing within a certain number of hours from now using `--max-expiration-hours` (minimum 1 hour). This converts to the Kalshi API's `max_close_ts` (Unix timestamp) automatically.
-
-```bash
-# Only include markets that close within the next 6 hours
-uv run trading-bot --max-expiration-hours 6
-
-# Combine with live trading
-uv run trading-bot --live --max-expiration-hours 12
-```
+The `watch --theme` command outputs NDJSON (one JSON object per scan cycle), suitable for streaming pipelines.
 
 ## Configuration
 
-Key settings in `.env`:
-
-```env
-# Environment
-KALSHI_USE_DEMO=true          # Use demo environment for testing
-
-# Limits
-MAX_EVENTS_TO_ANALYZE=50      # Number of top events to analyze by 24h volume
-MAX_BET_AMOUNT=25.0           # Maximum bet per market
-RESEARCH_BATCH_SIZE=10        # Number of parallel deep research requests
-SKIP_EXISTING_POSITIONS=true # Skip betting on markets where we already have positions
-
-# Risk Management / Hedging
-ENABLE_HEDGING=true           # Enable hedging to minimize risk and protect downside
-HEDGE_RATIO=0.25              # Default hedge ratio (0.25 = hedge 25% of main bet on opposite side)
-MIN_CONFIDENCE_FOR_HEDGING=0.6 # Only hedge bets with confidence below this threshold
-MAX_HEDGE_AMOUNT=50.0         # Maximum hedge amount per bet in dollars
-
-# API Keys
-KALSHI_API_KEY=your_key
-KALSHI_PRIVATE_KEY=your_private_key
-OCTAGON_API_KEY=your_key
-OPENAI_API_KEY=your_key
-```
-
-### Configuration Notes
-
-- **MAX_EVENTS_TO_ANALYZE**: Controls how many of the top events (sorted by 24h volume) to analyze. The bot fetches ALL events from Kalshi, sorts them by trading volume, and processes only the top N most active events.
-- **RESEARCH_BATCH_SIZE**: Controls how many deep research requests are sent in parallel. Higher values process faster but may hit rate limits. Recommended range: 1-20.
-- **SKIP_EXISTING_POSITIONS**: When enabled (default), the bot will skip betting on markets where you already have positions to avoid duplicate trades.
-- **MAX_MARKETS_PER_EVENT**: Controls how many markets per event to analyze (default: 10). For events with many markets, selects the top N markets by volume to keep context manageable.
-
-**Risk Management & Hedging:**
-- **ENABLE_HEDGING**: When enabled (default), automatically generates hedge bets to minimize downside risk
-- **HEDGE_RATIO**: Proportion of main bet amount to hedge on opposite side (0.25 = 25% hedge)
-- **MIN_CONFIDENCE_FOR_HEDGING**: Only hedge bets with confidence below this threshold (0.6 = hedge when confidence < 60%)  
-- **MAX_HEDGE_AMOUNT**: Maximum dollar amount per hedge bet to limit hedge costs
-
-### Trading Modes
-
-**Demo vs Production Environment:**
-- `KALSHI_USE_DEMO=true`: Uses Kalshi's demo environment with test data and fake money
-- `KALSHI_USE_DEMO=false`: Uses Kalshi's production environment with real markets and real money
-
-**Dry Run vs Live Trading:**
-- **Default (Dry Run)**: Shows what trades would be made without placing real bets
-- **Live Trading (`--live`)**: Actually places bets on the selected environment
-
-**Recommended Testing Flow:**
-1. `KALSHI_USE_DEMO=true` + Default (dry run): Test with demo data, no bets placed
-2. `KALSHI_USE_DEMO=true` + `--live`: Test with demo data, fake bets placed
-3. `KALSHI_USE_DEMO=false` + Default (dry run): Test with real data, no bets placed
-4. `KALSHI_USE_DEMO=false` + `--live`: **LIVE TRADING** with real money
-
-## Project Structure
-
-```
-├── trading_bot.py          # Main bot execution
-├── config.py               # Configuration management
-├── kalshi_client.py        # Kalshi API client
-├── research_client.py      # Octagon Deep Research client
-├── betting_models.py       # Pydantic models for betting decisions
-├── pyproject.toml          # uv dependencies and project config
-├── env_template.txt        # Environment configuration template
-└── README.md              # This file
-```
-
-## API Integrations
-
-### Kalshi API
-- **Authentication**: RSA signature-based authentication
-- **Events**: Fetches top events sorted by volume
-- **Markets**: Gets all markets for each event
-- **Orders**: Places buy/sell orders for YES/NO positions
-
-### Octagon Deep Research
-- **Research**: Analyzes event + markets for sentiment, news, and trading factors
-- **Probability Predictions**: Provides independent probability assessments
-- **Insights**: Gives actionable trading recommendations
-- **Risk Assessment**: Identifies key risk factors for each market
-
-### OpenAI API
-- **Structured Output**: Uses GPT-4 for betting decision analysis
-- **Decision Making**: Processes research data into actionable bets
-- **Risk Management**: Built-in confidence thresholds and position sizing
-
-## Example Output
-
-```
-Step 1: Fetching top events...
-✓ Found 50 events
-
-Step 2: Fetching markets for 50 events...
-✓ Found 247 total markets across 45 events
-
-Step 3: Researching 45 events...
-✓ Researched NYC-MAYOR-2025
-Predicted probabilities for NYC-MAYOR-2025:
-  NYC-MAYOR-ZOHRAN: 71.0%
-  NYC-MAYOR-ADAMS: 13.0%
-✓ Completed research on 42 events
-
-Step 4: Generating betting decisions...
-✓ Generated 34 betting decisions
-
-Step 5: Placing bets...
-Bets to be placed:
-NYC-MAYOR-ZOHRAN: buy_yes $25.00
-  Reasoning: Research shows 71% probability, current market odds undervalue this candidate
-  Confidence: 0.85
-
-✓ Placed buy_yes bet on NYC-MAYOR-ZOHRAN for $25.00
-  Reasoning: Research shows 71% probability, current market odds undervalue this candidate
-✓ Successfully placed 28 bets
-✓ Total amount bet: $1,247.50
-```
-
-## Safety Features
-
-- **Demo Environment**: Test with mock funds before live trading
-- **Dry Run Mode**: Simulate all operations without real money
-- **Position Limits**: Configurable maximum bet amounts
-- **Confidence Thresholds**: Only bet on high-confidence opportunities
-- **Error Handling**: Comprehensive error handling and logging
-
-## Development
-
-### Architecture
-
-The bot uses a simple, linear workflow:
-1. `SimpleTradingBot.get_top_events()` - Fetch top events from Kalshi
-2. `SimpleTradingBot.get_markets_for_events()` - Get markets for each event
-3. `SimpleTradingBot.research_events()` - Research each event with Octagon
-4. `SimpleTradingBot.get_betting_decisions()` - Process research with OpenAI
-5. `SimpleTradingBot.place_bets()` - Execute bets via Kalshi
-
-### Key Classes
-
-- **SimpleTradingBot**: Main orchestration class
-- **KalshiClient**: Kalshi API interface
-- **OctagonClient**: Octagon Deep Research interface
-- **BettingDecision**: Individual betting decision model
-- **MarketAnalysis**: Complete analysis with multiple decisions
-
-### Development Commands
+### Environment Variables
 
 ```bash
-# Install development dependencies
-uv sync --group dev
-
-# Run tests
-uv run pytest
-
-# Format code
-uv run black .
-uv run isort .
-
-# Lint code
-uv run flake8 .
+cp env.example .env
 ```
 
-### Error Handling
+The setup wizard (`bun start setup`) handles this interactively, but you can also edit `.env` directly:
 
-The bot handles various error scenarios:
-- API rate limits and timeouts
-- Market data inconsistencies
-- Authentication failures
-- Network connectivity issues
+**Required:**
 
-## Limitations
+| Variable | Description |
+|----------|-------------|
+| `KALSHI_API_KEY` | Kalshi API key ID |
+| `KALSHI_PRIVATE_KEY_FILE` | Path to your Kalshi RSA private key PEM file |
+| `OPENAI_API_KEY` | OpenAI API key (default model is GPT-5.4) |
+| `OCTAGON_API_KEY` | Octagon API key for deep research. Get one at [app.octagonai.co](https://app.octagonai.co) |
 
-- **Event Coverage**: Processes events sequentially to avoid rate limits
-- **Research Quality**: Depends on Octagon Deep Research data quality
-- **Decision Making**: Relies on OpenAI's analysis capabilities
-- **Risk Management**: Basic position sizing and confidence thresholds only
+**Optional:**
 
-## Built By
+| Variable | Description |
+|----------|-------------|
+| `KALSHI_USE_DEMO` | `true` for demo environment (simulated trades) |
+| `KALSHI_PRIVATE_KEY` | Inline PEM key as alternative to file path |
+| `ANTHROPIC_API_KEY` | Anthropic (Claude) |
+| `GOOGLE_API_KEY` | Google (Gemini) |
+| `XAI_API_KEY` | xAI (Grok) |
+| `OPENROUTER_API_KEY` | OpenRouter (multi-model) |
+| `TAVILY_API_KEY` | Tavily web search for event research |
 
-This project is built by **[Octagon AI](https://octagonai.co)** – AI-powered research and analysis for prediction markets.
+> **Note:** The bot defaults to GPT-5.4. If using a different provider, switch the model via the `config` command — otherwise queries will fail without `OPENAI_API_KEY`.
+
+### Octagon Credits
+
+Each Octagon report costs 3 credits. Reports are cached with tiered TTLs based on market close proximity — markets closing soon get shorter cache windows. Use `--refresh` to force a fresh report. Set a daily credit ceiling with `config octagon.daily_credit_ceiling <n>`.
+
+### Runtime Settings
+
+```bash
+bun start config                              # List all settings
+bun start config risk.kelly_multiplier        # Get a value
+bun start config risk.kelly_multiplier 0.3    # Set a value
+```
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `scan.interval` | `60` | Scan interval in minutes |
+| `scan.theme` | `top50` | Default market theme |
+| `risk.kelly_multiplier` | `0.5` | Kelly fraction (0.5 = half-Kelly) |
+| `risk.max_drawdown` | `0.20` | Max drawdown before circuit breaker |
+| `risk.max_positions` | `10` | Max concurrent open positions |
+| `risk.max_per_category` | `3` | Max positions per event category |
+| `risk.daily_loss_limit` | `200` | Daily loss limit in dollars |
+| `octagon.daily_credit_ceiling` | `100` | Max Octagon credits per day |
+| `alerts.min_edge` | `0.05` | Minimum edge to trigger an alert |
+
+## Architecture
+
+![Kalshi Trading Flow](assets/kalshi-flow-light.png)
+
+The CLI talks to two external services: the Kalshi exchange API (market data, order placement, portfolio) and the Octagon research API (AI probability estimates, price drivers). Results are cached in a local SQLite database to minimize API calls and credit usage.
+
+### LLM Providers
+
+Default model is GPT-5.4. Switch with the `config` command.
+
+| Prefix | Provider |
+|--------|----------|
+| `gpt-` | OpenAI |
+| `claude-` | Anthropic |
+| `gemini-` | Google |
+| `grok-` | xAI |
+| `openrouter/` | OpenRouter |
+| `ollama:` | Ollama (local) |
+
+### Development
+
+```bash
+bun dev              # Dev mode with hot reload
+bun run typecheck    # Type checking
+bun test             # Run tests
+```
+
+## Documentation
+
+See the [User Guide](GUIDE.md) for detailed usage instructions, examples, and tips.
 
 ## License
 
-This project is for educational and research purposes. Use at your own risk.
-
-## Support
-
-For issues or questions:
-1. Check the error logs for detailed error messages
-2. Verify API credentials and rate limits
-3. Test with smaller event limits first
-4. Use dry run mode for debugging 
+MIT License — see [LICENSE](LICENSE) for details.
