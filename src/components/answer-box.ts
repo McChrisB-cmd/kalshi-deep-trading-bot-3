@@ -17,8 +17,7 @@ export class AnswerBoxComponent extends Container {
   setText(text: string) {
     this.value = text;
     const rendered = formatResponse(text);
-    // Prevent "⏺" from appearing on its own line when model output starts with newlines.
     const normalized = rendered.replace(/^\n+/, '');
-    this.body.setText(`${theme.primary('⏺ ')}${normalized}`);
+    this.body.setText(`${theme.primary('⏺')}\n${normalized}`);
   }
 }
