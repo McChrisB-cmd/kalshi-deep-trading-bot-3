@@ -2,6 +2,7 @@ import type { Database } from 'bun:sqlite';
 import type { AuditTrail } from '../audit/trail.js';
 import { callKalshiApi, fetchAllPages } from '../tools/kalshi/api.js';
 import type { KalshiEvent, KalshiMarket, KalshiSeries } from '../tools/kalshi/types.js';
+import { ensureIndex } from '../tools/kalshi/search-index.js';
 import { upsertEvent, deactivateExpired } from '../db/events.js';
 import { getThemeTickers } from '../db/themes.js';
 
@@ -117,17 +118,12 @@ export class ThemeResolver {
   private async resolveCategory(themeName: string): Promise<string[]> {
     const categoryLabel = CATEGORY_MAP[themeName];
     // Kalshi /events API does not support server-side category filtering,
-    // so we fetch all open events and filter client-side
-    const events = await fetchAllPages<KalshiEvent>(
-      '/events',
-      { status: 'open' },
-      'events',
-      50
-    );
-
-    return events
-      .filter((e) => e.category === categoryLabel)
-      .map((e) => e.event_ticker);
+    // so query the local SQLite index instead of fetching all open events
+    await ensureIndex();
+    const rows = this.db.query(
+      `SELECT event_ticker FROM event_index WHERE category = ?`,
+    ).all(categoryLabel) as { event_ticker: string }[];
+    return rows.map((r) => r.event_ticker);
   }
 
   private async resolveSubcategory(themeName: string): Promise<string[]> {
